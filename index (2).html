@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>도플러 효과 실험실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+html,body{margin:0}
+:root{
+  --bg:#F4F6F9; --panel:#FFFFFF; --ink:#18202C; --muted:#5E6878; --line:#D5DAE3; --soft:#EEF1F6;
+  --src:#D1541B; --obs:#2563D9; --rear:#7A4FD0; --wave:#3B4A63; --grid:#E6E9EF; --accent:#0E7C66; --hit:#C2186B; --hi:#C2186B; --lo:#2563D9;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#11151C; --panel:#1A2029; --ink:#E7EBF1; --muted:#9AA4B3; --line:#2E3643; --soft:#222A35;
+    --src:#F08A52; --obs:#6E9DF5; --rear:#B294F2; --wave:#A9B6CB; --grid:#252C37; --accent:#3CC4A2; --hit:#F06BAA; --hi:#F06BAA; --lo:#6E9DF5;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11151C; --panel:#1A2029; --ink:#E7EBF1; --muted:#9AA4B3; --line:#2E3643; --soft:#222A35;
+  --src:#F08A52; --obs:#6E9DF5; --rear:#B294F2; --wave:#A9B6CB; --grid:#252C37; --accent:#3CC4A2; --hit:#F06BAA; --hi:#F06BAA; --lo:#6E9DF5;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:"Noto Sans KR",system-ui,sans-serif;font-size:15px;line-height:1.65;padding:24px 16px 48px}
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header h1{font-size:1.5rem;margin:0;text-wrap:balance}
+header p{margin:4px 0 0;color:var(--muted);max-width:74ch}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.label{font-size:.75rem;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:8px}
+canvas{display:block;width:100%}
+#sim{aspect-ratio:900/360}
+#spec{aspect-ratio:900/150}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tab{border:none;background:none;font:inherit;font-weight:700;color:var(--muted);padding:10px 14px;border-bottom:3px solid transparent;cursor:pointer;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,select{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:7px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--ink);color:var(--bg);border-color:var(--ink);min-width:84px}
+button.pre.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+button.snd.on{background:var(--accent);border-color:var(--accent);color:#fff}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.sliders{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media (max-width:760px){.sliders{grid-template-columns:1fr}}
+.sl label{display:flex;justify-content:space-between;gap:8px;font-size:.88rem;color:var(--muted)}
+.sl label b{color:var(--ink)}
+.sl .hint{font-size:.78rem;color:var(--muted);display:flex;justify-content:space-between}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:760px){.grid2{grid-template-columns:1fr}}
+.res{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:.92rem;margin:0}
+.res dt{color:var(--muted)} .res dd{margin:0}
+.big{font-size:1.3rem;font-weight:700}
+#verdict{font-size:.95rem;padding:10px 12px;border-radius:8px;background:var(--soft);margin-top:10px}
+#verdict b{color:var(--hit)}
+.f{font-family:"Times New Roman",serif;font-style:italic;font-size:1.08em}
+.f .n{font-style:normal}
+.frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 .15em;line-height:1.2}
+.frac>span:first-child{border-bottom:1px solid currentColor;padding:0 .25em}
+.frac>span:last-child{padding:0 .25em}
+.eqbox{background:var(--soft);border-radius:8px;padding:10px 14px;margin:6px 0 10px;overflow-x:auto;white-space:nowrap;font-size:1.06rem}
+.case h3{font-size:1rem;margin:0 0 6px}
+.case ol{margin:0;padding-left:1.2em}
+.case li{margin-bottom:6px}
+.case .out{font-weight:700;color:var(--hit);margin:6px 0 0}
+.case .out.low{color:var(--lo)}
+.gen{border:2px solid var(--accent);border-radius:10px;padding:16px}
+.gen h3{margin:0 0 8px;color:var(--accent);font-size:1.02rem}
+.signs{border-collapse:collapse;width:100%;font-size:.92rem;margin-top:6px}
+.signs th,.signs td{border-top:1px solid var(--line);padding:7px 8px;text-align:left}
+.signs th{color:var(--muted);font-size:.8rem;border-top:none}
+.tw{overflow-x:auto}
+.tip{font-size:.9rem;padding:10px 12px;border-radius:8px;background:var(--soft);margin:8px 0 0}
+.tip b{color:var(--accent)}
+.apps{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.app h3{margin:0 0 4px;font-size:1rem}
+.app p{margin:0;font-size:.92rem;color:var(--muted)}
+.app .tag{display:inline-block;font-size:.75rem;font-weight:700;border:1px solid var(--line);border-radius:999px;padding:1px 8px;margin-bottom:6px;color:var(--muted)}
+[hidden]{display:none!important}
+details{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+summary{cursor:pointer;font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>도플러 효과 실험실</h1>
+    <p>음원 S와 관찰자 O의 속력을 정하면 파면이 퍼지는 모습과 관찰자가 실제로 세는 진동수를 보여 줍니다. 공식으로 계산한 값과 파면을 세어 측정한 값을 나란히 비교할 수 있습니다.</p>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-sim" aria-selected="true" aria-controls="p-sim">시뮬레이션</button>
+    <button class="tab" role="tab" id="tab-formula" aria-selected="false" aria-controls="p-formula">공식 정리</button>
+    <button class="tab" role="tab" id="tab-app" aria-selected="false" aria-controls="p-app">도플러 효과의 활용</button>
+  </div>
+
+  <!-- ============ SIM ============ -->
+  <section id="p-sim" role="tabpanel" aria-labelledby="tab-sim" style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <span style="color:var(--muted);font-size:.85rem">교과서 상황</span>
+        <button class="pre" data-p="s+">음원이 다가올 때</button>
+        <button class="pre" data-p="s-">음원이 멀어질 때</button>
+        <button class="pre" data-p="o+">관찰자가 다가갈 때</button>
+        <button class="pre" data-p="o-">관찰자가 멀어질 때</button>
+        <button class="pre" data-p="ex">예제 (125 Hz)</button>
+      </div>
+      <canvas id="sim" aria-label="음원과 관찰자, 퍼져 나가는 파면"></canvas>
+      <div class="row" style="margin-top:10px">
+        <button id="play" class="primary">일시정지</button>
+        <button id="restart">처음부터</button>
+        <select id="speed" aria-label="재생 속도"><option value="0.5">0.5×</option><option value="1" selected>1×</option></select>
+        <span style="color:var(--muted);font-size:.85rem;margin-left:6px">소리 듣기</span>
+        <button class="snd" id="sndO">관찰자 O가 듣는 소리</button>
+        <button class="snd" id="sndS">원래 소리 f</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="sliders">
+        <div class="sl"><label for="sf"><span>음원 진동수 f</span><b id="vf"></b></label><input id="sf" type="range" min="100" max="1000" step="10" value="440"><div class="hint"><span>100 Hz</span><span>1000 Hz</span></div></div>
+        <div class="sl"><label for="sS"><span>음원 속력 v<sub>S</sub></span><b id="vS"></b></label><input id="sS" type="range" min="-200" max="200" step="5" value="80"><div class="hint"><span>← 관찰자에게서 멀어짐</span><span>관찰자 쪽으로 →</span></div></div>
+        <div class="sl"><label for="sO"><span>관찰자 속력 v<sub>O</sub></span><b id="vO"></b></label><input id="sO" type="range" min="-200" max="200" step="5" value="0"><div class="hint"><span>음원에게서 멀어짐 →</span><span>← 음원 쪽으로</span></div></div>
+      </div>
+      <p style="margin:10px 0 0;font-size:.85rem;color:var(--muted)">소리의 속력 v = 340 m/s. 화면은 속력의 비율을 유지한 채 느리게 재생합니다.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <div class="label">관찰자 O (앞쪽)</div>
+        <dl class="res mono" id="resO"></dl>
+        <div id="verdict"></div>
+      </div>
+      <div class="card">
+        <div class="label">뒤쪽 관찰자 P (정지, 음원 뒤)</div>
+        <dl class="res mono" id="resP"></dl>
+        <p style="font-size:.86rem;color:var(--muted);margin:10px 0 0">같은 음원이라도 앞쪽 O와 뒤쪽 P가 듣는 진동수가 다릅니다. 음원 앞쪽은 파장이 짧아지고 뒤쪽은 길어지기 때문입니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FORMULA ============ -->
+  <section id="p-formula" role="tabpanel" aria-labelledby="tab-formula" hidden style="flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="label">도플러 효과란</div>
+      <p style="margin:0">파원이나 관찰자의 상대적 운동에 따라 관찰자가 관측하는 파동의 진동수가 파원의 진동수와 달라지는 현상. 진동수 f, 파장 λ, 소리의 속력 v 사이에는 항상 <span class="f">v = fλ</span>, 즉 <span class="f">f = <span class="frac"><span>v</span><span>λ</span></span></span>.</p>
+      <p style="margin:8px 0 0">음원이 움직이면 <b>파장 λ</b>가 바뀌고, 관찰자가 움직이면 관찰자에 대한 <b>소리의 속력 v</b>가 바뀝니다.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="card case">
+        <div class="label">① 관찰자 정지, 음원이 다가올 때</div>
+        <ol>
+          <li>관찰자가 듣는 소리의 속력: <span class="f">v′ = v</span></li>
+          <li>파장: 주기 T 동안 음원이 <span class="f">v<sub>S</sub>T</span>만큼 따라오므로 짧아짐
+            <div class="eqbox f">λ′ = λ − v<sub>S</sub>T = <span class="frac"><span>v</span><span>f</span></span> − <span class="frac"><span>v<sub>S</sub></span><span>f</span></span></div></li>
+          <li>진동수 <div class="eqbox f">f′ = <span class="frac"><span>v′</span><span>λ′</span></span> = <span class="frac"><span>v</span><span>v − v<sub>S</sub></span></span> f</div></li>
+        </ol>
+        <p class="out">→ 진동수가 커짐 (높은 소리)</p>
+      </div>
+      <div class="card case">
+        <div class="label">② 관찰자 정지, 음원이 멀어질 때</div>
+        <ol>
+          <li>관찰자가 듣는 소리의 속력: <span class="f">v″ = v</span></li>
+          <li>파장: 주기 T 동안 음원이 <span class="f">v<sub>S</sub>T</span>만큼 멀어지므로 길어짐
+            <div class="eqbox f">λ″ = λ + v<sub>S</sub>T = <span class="frac"><span>v</span><span>f</span></span> + <span class="frac"><span>v<sub>S</sub></span><span>f</span></span></div></li>
+          <li>진동수 <div class="eqbox f">f″ = <span class="frac"><span>v″</span><span>λ″</span></span> = <span class="frac"><span>v</span><span>v + v<sub>S</sub></span></span> f</div></li>
+        </ol>
+        <p class="out low">→ 진동수가 작아짐 (낮은 소리)</p>
+      </div>
+      <div class="card case">
+        <div class="label">③ 음원 정지, 관찰자가 다가갈 때</div>
+        <ol>
+          <li>관찰자가 듣는 소리의 속력: <span class="f">v′ = v + v<sub>O</sub></span></li>
+          <li>파장은 그대로: <span class="f">λ′ = λ</span></li>
+          <li>진동수 <div class="eqbox f">f′ = <span class="frac"><span>v′</span><span>λ′</span></span> = <span class="frac"><span>v + v<sub>O</sub></span><span>v</span></span> f</div></li>
+        </ol>
+        <p class="out">→ 진동수가 커짐 (높은 소리)</p>
+      </div>
+      <div class="card case">
+        <div class="label">④ 음원 정지, 관찰자가 멀어질 때</div>
+        <ol>
+          <li>관찰자가 듣는 소리의 속력: <span class="f">v″ = v − v<sub>O</sub></span></li>
+          <li>파장은 그대로: <span class="f">λ″ = λ</span></li>
+          <li>진동수 <div class="eqbox f">f″ = <span class="frac"><span>v″</span><span>λ″</span></span> = <span class="frac"><span>v − v<sub>O</sub></span><span>v</span></span> f</div></li>
+        </ol>
+        <p class="out low">→ 진동수가 작아짐 (낮은 소리)</p>
+      </div>
+    </div>
+
+    <div class="card gen">
+      <h3>도플러 효과의 일반적인 관계식</h3>
+      <div class="eqbox f" style="font-size:1.25rem">f′ = <span class="frac"><span>v ± v<sub>O</sub></span><span>v ∓ v<sub>S</sub></span></span> f</div>
+      <div class="tw"><table class="signs">
+        <tr><th>위치</th><th>다가갈 때</th><th>멀어질 때</th></tr>
+        <tr><td>분자 (관찰자 v<sub>O</sub>)</td><td>+ (관찰자가 음원 쪽으로)</td><td>− (관찰자가 음원에서 멀어짐)</td></tr>
+        <tr><td>분모 (음원 v<sub>S</sub>)</td><td>− (음원이 관찰자 쪽으로)</td><td>+ (음원이 관찰자에서 멀어짐)</td></tr>
+      </table></div>
+      <p class="tip"><b>암기</b> 분자에는 관찰자(v<sub>O</sub>) 항이 들어가므로 '<b>자</b>' 돌림(분자-관찰자)으로 외우면 편합니다. 부호는 "다가가면 진동수가 커지는 쪽"으로 고르면 틀리지 않습니다.</p>
+      <p class="tip"><b>주의</b> 음원과 관찰자가 모두 움직이면 둘 중 하나만 고려해서 진동수를 구하면 안 됩니다. 분자와 분모를 모두 바꿔야 합니다.</p>
+      <p class="tip"><b>교재 확인</b> 교재 167쪽 관계식 아래 설명에 음원이 '멀어질 때(−)'로 인쇄되어 있는데, 위 ②에서 보듯 음원이 멀어지면 분모는 <b>v + v<sub>S</sub></b>(+)입니다.</p>
+      <details>
+        <summary>예제 (교재 167쪽)</summary>
+        <p>진동수가 100 Hz인 소리를 내는 음원이 철수를 향해 20 m/s의 속력으로, 철수는 음원을 향해 60 m/s의 속력으로 이동하고 있다. 소리의 속력이 340 m/s일 때, 철수가 듣는 소리의 진동수는?</p>
+        <div class="eqbox f">f′ = <span class="frac"><span>v + v<sub>O</sub></span><span>v − v<sub>S</sub></span></span> f = <span class="frac"><span class="n">340 + 60</span><span class="n">340 − 20</span></span> × <span class="n">100 = 125 Hz</span></div>
+        <p>둘 다 다가가므로 분자는 +, 분모는 −. 시뮬레이션 탭의 "예제" 버튼으로 같은 상황을 확인할 수 있습니다.</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============ APPS ============ -->
+  <section id="p-app" role="tabpanel" aria-labelledby="tab-app" hidden style="flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="label">천체 관측: 청색 편이와 적색 편이</div>
+      <canvas id="spec" aria-label="별빛 스펙트럼의 흡수선 이동"></canvas>
+      <div class="sl" style="margin-top:8px"><label for="sz"><span>은하의 시선 속도 (+ 멀어짐, − 다가옴)</span><b id="vz"></b></label><input id="sz" type="range" min="-0.12" max="0.12" step="0.005" value="0.06"></div>
+      <p id="specnote" style="margin:8px 0 0;font-size:.92rem"></p>
+    </div>
+    <div class="label" style="margin:0">전자기파를 이용한 활용</div>
+    <div class="apps">
+      <div class="card app"><span class="tag">전자기파</span><h3>도플러 레이더</h3><p>안테나에서 마이크로파나 라디오파 같은 전자기파를 발사하고, 공기 중 물체(빗방울, 눈의 결정 등)에서 반사된 신호의 진동수 변화로 물체의 이동 방향·속도를 측정합니다. 주위에 부는 바람의 방향과 속도도 알 수 있습니다.</p></div>
+      <div class="card app"><span class="tag">전자기파</span><h3>천체 관측</h3><p>별·은하가 관찰자에게 가까워지면 빛의 파장이 짧아져 진동수가 크게 측정되는 <b>청색 편이</b>, 멀어지면 파장이 길어져 진동수가 작게 측정되는 <b>적색 편이</b>가 나타납니다.</p></div>
+      <div class="card app"><span class="tag">전자기파</span><h3>속력 측정 장치</h3><p>측정 장치에서 발생한 전자기파가 자동차에서 반사되어 돌아오면, 자동차의 속력에 따라 진동수가 달라지는 것을 이용해 속력을 측정합니다.</p></div>
+    </div>
+    <div class="label" style="margin:0">초음파를 이용한 활용</div>
+    <div class="apps">
+      <div class="card app"><span class="tag">초음파</span><h3>도플러 초음파 검사기</h3><p>검사 장치에서 발생한 초음파와 혈액에서 반사된 초음파의 진동수 차이로 혈액의 속력과 방향을 측정합니다. 주로 심장, 혈관, 태아 등의 검사에 쓰입니다.</p></div>
+      <div class="card app"><span class="tag">초음파</span><h3>도플러 유량계</h3><p>유체 속 부유 입자에서 반사되는 초음파의 진동수 변화로 유체의 속도와 유량을 측정합니다. 주로 배관 속 유체의 흐름을 측정합니다.</p></div>
+      <div class="card app"><span class="tag">초음파</span><h3>어군 탐지기</h3><p>배에서 보낸 초음파가 물고기 떼에서 반사되어 돌아오는 신호로 위치를 찾고, 진동수 변화로 이동 방향을 파악합니다.</p></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(()=>{
+let C={};
+function readColors(){const s=getComputedStyle(document.documentElement);
+  for(const k of['bg','panel','ink','muted','line','soft','src','obs','rear','wave','grid','accent','hit','hi','lo'])C[k]=s.getPropertyValue('--'+k).trim();}
+function fit(cv,w,h){const q=window.devicePixelRatio||1;const cw=cv.clientWidth||900;cv.width=Math.round(cw*q);cv.height=Math.round(cw*h/w*q);
+  const x=cv.getContext('2d');x.setTransform(cv.width/w,0,0,cv.height/h,0,0);return x;}
+
+/* tabs */
+const tabs=[...document.querySelectorAll('.tab')];
+function showTab(id){tabs.forEach(t=>{const on=t.id===id;t.setAttribute('aria-selected',on);const p=document.getElementById(t.getAttribute('aria-controls'));p.hidden=!on;if(on)p.style.display='flex';});resize();}
+tabs.forEach(t=>t.onclick=()=>showTab(t.id));
+
+/* physics */
+const V=340;
+let f=440,vS=80,vO=0;
+const fO=()=>(V+vO)/(V-vS)*f;     // 관찰자 O (앞쪽): vS>0 다가옴, vO>0 다가감
+const fP=()=>V/(V+vS)*f;          // 뒤쪽 정지 관찰자 P
+
+/* visual model */
+const VV=120, TV=0.42, K=VV/V;      // px/s, 표시 주기
+const XS0=230, XO0=720, XP=55, AY=210;
+let t=0, waves=[], arrO=[], arrP=[], nextEmit=0, playing=!matchMedia('(prefers-reduced-motion: reduce)').matches, speed=1, last=null;
+const xs=tt=>XS0+vS*K*tt, xo=tt=>XO0-vO*K*tt;
+function restart(){t=0;waves=[];arrO=[];arrP=[];nextEmit=0;}
+function measured(arr){if(arr.length<3)return null;const a=arr.slice(-6);const d=(a[a.length-1]-a[0])/(a.length-1);return f*TV/d;}
+
+function advance(dt){
+  const n=Math.max(1,Math.ceil(dt/0.004)),h=dt/n;
+  for(let i=0;i<n;i++){
+    t+=h;
+    while(t>=nextEmit){waves.push({t0:nextEmit,x0:xs(nextEmit),o:false,p:false});nextEmit+=TV;}
+    for(const w of waves){const r=VV*(t-w.t0);
+      if(!w.o&&r>=xo(t)-w.x0){w.o=true;arrO.push(t);}
+      if(!w.p&&r>=w.x0-XP){w.p=true;arrP.push(t);}}
+    if(waves.length>80)waves.shift();
+    if(xo(t)-xs(t)<70||xs(t)<XP+40||xo(t)>880||xs(t)>880||t>14){restart();break;}
+  }
+}
+
+const sim=document.getElementById('sim');let sx;
+function person(c,x,col,lab){c.strokeStyle=col;c.fillStyle=col;c.lineWidth=2.4;
+  c.beginPath();c.arc(x,AY-48,8,0,7);c.fill();
+  c.beginPath();c.moveTo(x,AY-40);c.lineTo(x,AY-16);c.moveTo(x,AY-16);c.lineTo(x-8,AY);c.moveTo(x,AY-16);c.lineTo(x+8,AY);c.moveTo(x-10,AY-32);c.lineTo(x+10,AY-32);c.stroke();
+  c.font='700 15px "Noto Sans KR",sans-serif';c.textAlign='center';c.fillText(lab,x,AY+22);}
+function arrowH(c,x,y,len,col,label){if(Math.abs(len)<3)return;const d=Math.sign(len);c.strokeStyle=col;c.fillStyle=col;c.lineWidth=3;
+  c.beginPath();c.moveTo(x,y);c.lineTo(x+len-d*9,y);c.stroke();c.beginPath();c.moveTo(x+len,y);c.lineTo(x+len-d*11,y-6);c.lineTo(x+len-d*11,y+6);c.closePath();c.fill();
+  if(label){c.font='600 12px "JetBrains Mono",monospace';c.textAlign='center';c.fillText(label,x+len/2,y-8);}}
+function bracket(c,x1,x2,y,col,lab){if(Math.abs(x2-x1)<6)return;c.strokeStyle=col;c.lineWidth=1.5;c.beginPath();c.moveTo(x1,y);c.lineTo(x2,y);c.moveTo(x1,y-5);c.lineTo(x1,y+5);c.moveTo(x2,y-5);c.lineTo(x2,y+5);c.stroke();
+  c.fillStyle=col;c.font='italic 600 13px "JetBrains Mono",monospace';c.textAlign='center';c.fillText(lab,(x1+x2)/2,y+18);}
+function drawSim(){
+  const c=sx;c.clearRect(0,0,900,360);
+  c.save();c.beginPath();c.rect(0,0,900,360);c.clip();
+  // waves
+  for(const w of waves){const r=VV*(t-w.t0);if(r<=0)continue;const a=Math.max(0.12,1-r/700);
+    c.globalAlpha=a;c.strokeStyle=C.wave;c.lineWidth=1.6;c.beginPath();c.arc(w.x0,AY-10,r,0,7);c.stroke();}
+  c.globalAlpha=1;
+  // emission points trail
+  c.fillStyle=C.src;for(const w of waves){if(VV*(t-w.t0)<700){c.globalAlpha=.35;c.beginPath();c.arc(w.x0,AY-10,2.2,0,7);c.fill();}}c.globalAlpha=1;
+  c.restore();
+  // ground
+  c.strokeStyle=C.muted;c.lineWidth=2;c.beginPath();c.moveTo(10,AY+2);c.lineTo(890,AY+2);c.stroke();
+  // wavelength brackets (front & back) from last two complete wavefronts
+  const live=waves.filter(w=>t-w.t0>0);
+  if(live.length>=3){const a=live[live.length-2],b=live[live.length-3];
+    const ra=VV*(t-a.t0),rb=VV*(t-b.t0);
+    bracket(c,a.x0+ra,b.x0+rb,AY+46,C.hi,vS>2?"λ′ (짧아짐)":vS<-2?"λ′ (길어짐)":"λ");
+    bracket(c,b.x0-rb,a.x0-ra,AY+46,C.rear,vS>2?"λ″ (길어짐)":vS<-2?"λ″ (짧아짐)":"λ");}
+  // source (car)
+  const sxp=xs(t);c.fillStyle=C.src;c.beginPath();c.roundRect?c.roundRect(sxp-26,AY-30,52,26,6):c.rect(sxp-26,AY-30,52,26);c.fill();
+  c.fillStyle=C.panel;c.fillRect(sxp-6,AY-26,14,9);
+  c.fillStyle=C.ink;for(const dx of[-15,15]){c.beginPath();c.arc(sxp+dx,AY-3,5,0,7);c.fill();}
+  c.fillStyle=C.ink;c.font='700 15px "Noto Sans KR",sans-serif';c.textAlign='center';c.fillText('S',sxp,AY+22);
+  arrowH(c,sxp,AY-46,vS*0.35,C.src,vS?`v_S = ${Math.abs(vS)}`:'');
+  // observers
+  person(c,xo(t),C.obs,'O');arrowH(c,xo(t),AY-70,-vO*0.35,C.obs,vO?`v_O = ${Math.abs(vO)}`:'');
+  person(c,XP,C.rear,'P');
+  // flash on arrival
+  const flash=(arr,x,col)=>{if(arr.length&&t-arr[arr.length-1]<0.12){c.strokeStyle=col;c.lineWidth=3;c.beginPath();c.arc(x,AY-30,24,0,7);c.stroke();}};
+  flash(arrO,xo(t),C.obs);flash(arrP,XP,C.rear);
+  // header text
+  c.fillStyle=C.muted;c.font='12px "Noto Sans KR",sans-serif';c.textAlign='left';
+  c.fillText('파면 사이 간격 = 파장. 점은 각 파면이 발생한 위치(음원이 있던 곳).',16,22);
+  c.textAlign='right';c.fillText(`O가 받은 파면 ${arrO.length}개 · P가 받은 파면 ${arrP.length}개`,884,22);
+}
+
+const r1=v=>Math.round(v*10)/10;
+function panels(){
+  document.getElementById('vf').textContent=f+' Hz';
+  document.getElementById('vS').textContent=(vS>0?'다가옴 ':vS<0?'멀어짐 ':'정지 ')+Math.abs(vS)+' m/s';
+  document.getElementById('vO').textContent=(vO>0?'다가감 ':vO<0?'멀어짐 ':'정지 ')+Math.abs(vO)+' m/s';
+  const lamF=(V-vS)/f, lamB=(V+vS)/f, mO=measured(arrO), mP=measured(arrP);
+  const sn=x=>x>=0?'+ '+x:'− '+(-x), sd=x=>x>=0?'− '+x:'+ '+(-x);
+  document.getElementById('resO').innerHTML=`
+   <dt>O 쪽 파장 λ′</dt><dd>(${V} ${sd(vS)}) / ${f} = ${(lamF*100).toFixed(1)} cm</dd>
+   <dt>O에 대한 소리 속력</dt><dd>${V} ${sn(vO)} = ${V+vO} m/s</dd>
+   <dt>공식 f′</dt><dd><span class="big" style="color:${fO()>f+0.05?'var(--hi)':fO()<f-0.05?'var(--lo)':'var(--ink)'}">${r1(fO())} Hz</span></dd>
+   <dt>계산</dt><dd>(${V} ${sn(vO)}) / (${V} ${sd(vS)}) × ${f}</dd>
+   <dt>파면 세기 측정</dt><dd>${mO?r1(mO)+' Hz':'측정 중…'}</dd>`;
+  const d=fO()-f;
+  const why=[];
+  if(vS>0)why.push('음원이 다가와 앞쪽 파장이 짧아짐');if(vS<0)why.push('음원이 멀어져 앞쪽 파장이 길어짐');
+  if(vO>0)why.push('관찰자가 다가가 파면을 더 자주 만남');if(vO<0)why.push('관찰자가 멀어져 파면을 덜 자주 만남');
+  document.getElementById('verdict').innerHTML=Math.abs(d)<0.05?(why.length?'두 효과가 상쇄되어 원래 진동수와 같게 들림. ('+why.join(', ')+')':'둘 다 정지 → 원래 진동수 그대로 들림.')
+    :(d>0?`관찰자 O는 원래보다 <b>높은 소리</b>(+${r1(d)} Hz)를 듣습니다.`:`관찰자 O는 원래보다 <b style="color:var(--lo)">낮은 소리</b>(${r1(d)} Hz)를 듣습니다.`)+'<br>'+why.join(' · ');
+  document.getElementById('resP').innerHTML=`
+   <dt>P 쪽 파장 λ″</dt><dd>(${V} ${vS>=0?'+ '+vS:'− '+(-vS)}) / ${f} = ${(lamB*100).toFixed(1)} cm</dd>
+   <dt>공식 f″</dt><dd><span class="big" style="color:${fP()<f-0.05?'var(--lo)':fP()>f+0.05?'var(--hi)':'var(--ink)'}">${r1(fP())} Hz</span></dd>
+   <dt>계산</dt><dd>${V} / (${V} ${vS>=0?'+ '+vS:'− '+(-vS)}) × ${f}</dd>
+   <dt>파면 세기 측정</dt><dd>${mP?r1(mP)+' Hz':'측정 중…'}</dd>`;
+  updateSound();
+}
+
+/* presets */
+const PRE={'s+':[440,80,0],'s-':[440,-80,0],'o+':[440,0,80],'o-':[440,0,-80],'ex':[100,20,60]};
+let preKey='s+';
+function setVals(a,b,cc){f=a;vS=b;vO=cc;document.getElementById('sf').value=f;document.getElementById('sS').value=vS;document.getElementById('sO').value=vO;}
+document.querySelectorAll('.pre').forEach(b=>b.onclick=()=>{preKey=b.dataset.p;setVals(...PRE[preKey]);restart();markPre();panels();});
+function markPre(){document.querySelectorAll('.pre').forEach(b=>{const p=PRE[b.dataset.p];b.classList.toggle('on',p[0]===f&&p[1]===vS&&p[2]===vO);});}
+[['sf',v=>f=v],['sS',v=>vS=v],['sO',v=>vO=v]].forEach(([id,fn])=>document.getElementById(id).oninput=e=>{fn(+e.target.value);restart();markPre();panels();});
+
+/* sound */
+let actx=null,osc=null,gain=null,mode=null;
+function updateSound(){if(osc){osc.frequency.setTargetAtTime(mode==='O'?fO():f,actx.currentTime,0.03);}}
+function toggleSound(m){
+  try{
+    if(mode===m){osc.stop();osc=null;mode=null;}
+    else{if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)();
+      if(osc){osc.stop();}
+      osc=actx.createOscillator();gain=actx.createGain();gain.gain.value=0.07;osc.type='sine';
+      osc.frequency.value=m==='O'?fO():f;osc.connect(gain).connect(actx.destination);osc.start();mode=m;}
+  }catch(e){mode=null;}
+  document.getElementById('sndO').classList.toggle('on',mode==='O');document.getElementById('sndS').classList.toggle('on',mode==='S');
+}
+document.getElementById('sndO').onclick=()=>toggleSound('O');
+document.getElementById('sndS').onclick=()=>toggleSound('S');
+
+/* spectrum */
+const spec=document.getElementById('spec');let px;
+const LINES=[410,434,486,656];
+function wl2rgb(w){let r=0,g=0,b=0;
+  if(w<440){r=-(w-440)/60;b=1;}else if(w<490){g=(w-440)/50;b=1;}else if(w<510){g=1;b=-(w-510)/20;}else if(w<580){r=(w-510)/70;g=1;}else if(w<645){r=1;g=-(w-645)/65;}else{r=1;}
+  let a=w<420?0.3+0.7*(w-380)/40:w>700?0.3+0.7*(780-w)/80:1;a=Math.max(0.2,Math.min(1,a));
+  return `rgb(${Math.round(255*r*a)},${Math.round(255*g*a)},${Math.round(255*b*a)})`;}
+let z=0.06;
+function drawSpec(){
+  const c=px;c.clearRect(0,0,900,150);
+  const X=w=>60+(w-380)/(780-380)*780;
+  const band=(y,shift,lab)=>{for(let w=380;w<780;w+=1){c.fillStyle=wl2rgb(w);c.fillRect(X(w),y,X(w+1)-X(w)+0.5,34);}
+    c.fillStyle='#000';LINES.forEach(l=>{const w=l*(1+shift);if(w<780)c.fillRect(X(w)-1.5,y,3,34);});
+    c.fillStyle=C.ink;c.font='600 12px "Noto Sans KR",sans-serif';c.textAlign='right';c.fillText(lab,54,y+22);};
+  band(14,0,'정지 광원');band(74,z,'관측');
+  c.strokeStyle=C.muted;c.lineWidth=1;c.setLineDash([3,3]);LINES.forEach(l=>{const w2=l*(1+z);if(w2<780){c.beginPath();c.moveTo(X(l),48);c.lineTo(X(w2),74);c.stroke();}});c.setLineDash([]);
+  c.fillStyle=C.muted;c.font='11px "JetBrains Mono",monospace';c.textAlign='center';[400,500,600,700].forEach(w=>c.fillText(w+' nm',X(w),128));
+}
+function specPanel(){document.getElementById('vz').textContent=(z>0?'멀어짐 ':z<0?'다가옴 ':'')+Math.abs(z*100).toFixed(1)+'% 광속';
+  document.getElementById('specnote').innerHTML=z>0.001?'<b>적색 편이</b>: 은하가 멀어지면 흡수선이 파장이 긴 붉은 쪽으로 이동 (진동수 감소).'
+    :z<-0.001?'<b>청색 편이</b>: 은하가 다가오면 흡수선이 파장이 짧은 푸른 쪽으로 이동 (진동수 증가).':'정지: 흡수선 위치 변화 없음.';}
+document.getElementById('sz').oninput=e=>{z=+e.target.value;specPanel();drawSpec();};
+
+/* loop */
+const playBtn=document.getElementById('play');
+function setPlay(p){playing=p;playBtn.textContent=p?'일시정지':'재생';last=null;}
+playBtn.onclick=()=>setPlay(!playing);
+document.getElementById('restart').onclick=()=>{restart();panels();drawSim();};
+document.getElementById('speed').onchange=e=>speed=+e.target.value;
+let acc=0;
+function frame(ts){
+  if(playing&&!document.getElementById('p-sim').hidden){if(last!=null){const dt=Math.min(0.05,(ts-last)/1000)*speed;advance(dt);drawSim();acc+=dt;if(acc>0.25){acc=0;panels();}}last=ts;}else last=null;
+  requestAnimationFrame(frame);
+}
+function draw(){readColors();if(!document.getElementById('p-sim').hidden)drawSim();if(!document.getElementById('p-app').hidden)drawSpec();panels();specPanel();}
+function resize(){if(!document.getElementById('p-sim').hidden)sx=fit(sim,900,360);if(!document.getElementById('p-app').hidden)px=fit(spec,900,150);draw();}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+window.addEventListener('resize',resize);
+setVals(...PRE['s+']);markPre();
+// warm start so the first frame already shows wavefronts
+advance(3.2);
+setPlay(playing);resize();
+document.fonts&&document.fonts.ready.then(draw);
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>
